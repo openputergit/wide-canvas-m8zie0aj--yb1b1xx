@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fitness Predictor</title>
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const FitnessPredictor = () => {
+            const [formData, setFormData] = React.useState({
+                name: '',
+                gender: '',
+                age: '',
+                weight: '',
+                weightUnit: 'kg',
+                height: '',
+                heightUnit: 'cm',
+                goals: [],
+                goalReason: '',
+                activity: '',
+                goalWeight: '',
+                showMacros: false
+            });
+
+            const [bmiData, setBmiData] = React.useState(null);
+            const [macros, setMacros] = React.useState(null);
+
+            const calculateBMI = () => {
+                let weight = formData.weight;
+                let height = formData.height;
+
+                if (formData.weightUnit === 'lbs') {
+                    weight = weight * 0.453592;
+                }
+                if (formData.heightUnit === 'ft') {
+                    height = height * 30.48;
+                }
+
+                const heightInMeters = height / 100;
+                const bmi = weight / (heightInMeters * heightInMeters);
+                
+                let category = '';
+                if (bmi < 18.5) category = 'Underweight';
+                else if (bmi >= 18.5 && bmi < 25) category = 'Normal weight';
+                else if (bmi >= 25 && bmi < 30) category = 'Overweight';
+                else category = 'Obese';
+
+                return { bmi: bmi.toFixed(1), category };
+            };
+
+            const calculateMacros = () => {
+                // Basic macro calculation based on goals
+                let protein, carbs, fats;
+                const weight = formData.weightUnit === 'lbs' ? formData.weight * 0.453592 : formData.weight;
+
+                if (formData.goals.includes('gain muscle')) {
+                    protein = weight * 2.2;
+                    carbs = weight * 4;
+                    fats = weight * 0.9;
+                } else if (formData.goals.includes('lose weight')) {
+                    protein = weight * 2;
+                    carbs = weight * 2;
+                    fats = weight * 0.7;
+                } else {
+                    protein = weight * 1.8;
+                    carbs = weight * 3;
+                    fats = weight * 0.8;
+                }
+
+                return {
+                    protein: Math.round(protein),
+                    carbs: Math.round(carbs),
+                    fats: Math.round(fats)
+                };
+            };
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                const bmiResult = calculateBMI();
+                const macrosResult = calculateMacros();
+                setBmiData(bmiResult);
+                setMacros(macrosResult);
+                setFormData(prev => ({...prev, showMacros: true}));
+
+                // Simulated API call to backend
+                try {
+                    const response = await fetch('http://localhost:3000/api/fitness', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({...formData, bmi: bmiResult, macros: macrosResult}),
+                    });
+                    const data = await response.json();
+                    console.log('Data saved:', data);
+                } catch (error) {
+                    console.error('Error saving data:', error);
+                }
+            };
+
+            const handleGoalChange = (goal) => {
+                setFormData(prev => ({
+                    ...prev,
+                    goals: prev.goals.includes(goal)
+                        ? prev.goals.filter(g => g !== goal)
+                        : [...prev.goals, goal]
+                }));
+            };
+
+            return (
+                <div className="container mx-auto px-4 py-8 max-w-4xl">
+                    <h1 className="text-4xl font-bold text-center mb-8 text-blue-600">Fitness Predictor</h1>
+                    
+                    <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-lg p-6 mb-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-gray-700 mb-2">Name</label>
+                                <input
+                                    type="text"
+                                    required
+                                    className="w-full p-2 border rounded"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-gray-700 mb-2">Gender</label>
+                                <select
+                                    required
+                                    className="w-full p-2 border rounded"
+                                    value={formData.gender}
+                                    onChange={(e) => setFormData({...formData, gender: e.target.value})}
+                                >
+                                    <option value="">Select Gender</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-gray-700 mb-2">Age</label>
+                                <input
+                                    type="number"
+                                    required
+                                    className="w-full p-2 border rounded"
+                                    value={formData.age}
+                                    onChange={(e) => setFormData({...formData, age: e.target.value})}
+                                />
+                            </div>
+
+                            <div className="flex gap-4">
+                                <div className="flex-1">
+                                    <label className="block text-gray-700 mb-2">Weight</label>
+                                    <input
+                                        type="number"
+                                        required
+                                        className="w-full p-2 border rounded"
+                                        value={formData.weight}
+                                        onChange={(e) => setFormData({...formData, weight: e.target.value})}
+                                    />
+                                </div>
+                                <div className="w-24">
+                                    <label className="block text-gray-700 mb-2">Unit</label>
+                                    <select
+                                        className="w-full p-2 border rounded"
+                                        value={formData.weightUnit}
+                                        onChange={(e) => setFormData({...formData, weightUnit: e.target.value})}
+                                    >
+                                        <option value="kg">kg</option>
+                                        <option value="lbs">lbs</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-4">
+                                <div className="flex-1">
+                                    <label className="block text-gray-700 mb-2">Height</label>
+                                    <input
+                                        type="number"
+                                        required
+                                        className="w-full p-2 border rounded"
+                                        value={formData.height}
+                                        onChange={(e) => setFormData({...formData, height: e.target.value})}
+                                    />
+                                </div>
+                                <div className="w-24">
+                                    <label className="block text-gray-700 mb-2">Unit</label>
+                                    <select
+                                        className="w-full p-2 border rounded"
+                                        value={formData.heightUnit}
+                                        onChange={(e) => setFormData({...formData, heightUnit: e.target.value})}
+                                    >
+                                        <option value="cm">cm</option>
+                                        <option value="ft">ft</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-6">
+                            <label className="block text-gray-700 mb-2">Fitness Goals (Select multiple)</label>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {['gain weight', 'lose weight', 'gain muscle', 'manage stress'].map(goal => (
+                                    <label key={goal} className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.goals.includes(goal)}
+                                            onChange={() => handleGoalChange(goal)}
+                                            className="mr-2"
+                                        />
+                                        {goal}
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="mt-6">
+                            <label className="block text-gray-700 mb-2">Why did you choose these goals?</label>
+                            <textarea
+                                className="w-full p-2 border rounded"
+                                rows="3"
+                                value={formData.goalReason}
+                                onChange={(e) => setFormData({...formData, goalReason: e.target.value})}
+                            ></textarea>
+                        </div>
+
+                        <div className="mt-6">
+                            <label className="block text-gray-700 mb-2">Baseline Activity Level</label>
+                            <select
+                                required
+                                className="w-full p-2 border rounded"
+                                value={formData.activity}
+                                onChange={(e) => setFormData({...formData, activity: e.target.value})}
+                            >
+                                <option value="">Select Activity Level</option>
+                                <option value="not very active">Not Very Active</option>
+                                <option value="lightly active">Lightly Active</option>
+                                <option value="active">Active</option>
+                                <option value="very active">Very Active</option>
+                            </select>
+                        </div>
+
+                        <div className="mt-6">
+                            <label className="block text-gray-700 mb-2">Goal Weight</label>
+                            <input
+                                type="number"
+                                required
+                                className="w-full p-2 border rounded"
+                                value={formData.goalWeight}
+                                onChange={(e) => setFormData({...formData, goalWeight: e.target.value})}
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            className="mt-8 w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition duration-200"
+                        >
+                            Calculate Fitness Plan
+                        </button>
+                    </form>
+
+                    {formData.showMacros && bmiData && macros && (
+                        <div className="fade-in bg-white shadow-lg rounded-lg p-6">
+                            <h2 className="text-2xl font-bold mb-6 text-center text-blue-600">Your Fitness Analysis</h2>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                                <div className="p-4 bg-gray-50 rounded-lg">
+                                    <h3 className="text-xl font-semibold mb-4">BMI Analysis</h3>
+                                    <p className="text-lg">BMI: {bmiData.bmi}</p>
+                                    <p className="text-lg">Category: {bmiData.category}</p>
+                                </div>
+
+                                <div className="p-4 bg-gray-50 rounded-lg">
+                                    <h3 className="text-xl font-semibold mb-4">Daily Macros</h3>
+                                    <p>Protein: {macros.protein}g</p>
+                                    <p>Carbohydrates: {macros.carbs}g</p>
+                                    <p>Fats: {macros.fats}g</p>
+                                </div>
+                            </div>
+
+                            <div className="mt-6">
+                                <h3 className="text-xl font-semibold mb-4">Recommended Exercises</h3>
+                                <ul className="list-disc pl-6">
+                                    {formData.goals.includes('gain muscle') && (
+                                        <>
+                                            <li>Weight Training: Focus on compound exercises</li>
+                                            <li>Progressive Overload Training</li>
+                                            <li>Resistance Band Exercises</li>
+                                        </>
+                                    )}
+                                    {formData.goals.includes('lose weight') && (
+                                        <>
+                                            <li>Cardio: Running, Cycling, Swimming</li>
+                                            <li>High-Intensity Interval Training (HIIT)</li>
+                                            <li>Circuit Training</li>
+                                        </>
+                                    )}
+                                    {formData.goals.includes('manage stress') && (
+                                        <>
+                                            <li>Yoga and Meditation</li>
+                                            <li>Light Walking</li>
+                                            <li>Stretching Exercises</li>
+                                        </>
+                                    )}
+                                </ul>
+                            </div>
+
+                            <div className="mt-6">
+                                <h3 className="text-xl font-semibold mb-4">Dietary Recommendations</h3>
+                                <ul className="list-disc pl-6">
+                                    {formData.goals.includes('gain weight') && (
+                                        <>
+                                            <li>Increase caloric intake with nutrient-dense foods</li>
+                                            <li>Add healthy fats like nuts and avocados</li>
+                                            <li>Consume protein-rich foods frequently</li>
+                                        </>
+                                    )}
+                                    {formData.goals.includes('lose weight') && (
+                                        <>
+                                            <li>Create a moderate caloric deficit</li>
+                                            <li>Focus on high-fiber foods for satiety</li>
+                                            <li>Increase protein intake to preserve muscle mass</li>
+                                        </>
+                                    )}
+                                </ul>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        ReactDOM.render(<FitnessPredictor />, document.getElementById('root'));
+    </script>
+
+    <!-- Backend server code (Node.js + Express + MongoDB) would be in separate files:
+    
+    // server.js
+    const express = require('express');
+    const mongoose = require('mongoose');
+    const cors = require('cors');
+    
+    const app = express();
+    app.use(cors());
+    app.use(express.json());
+    
+    mongoose.connect('mongodb://localhost/fitness_predictor');
+    
+    const FitnessSchema = new mongoose.Schema({
+        name: String,
+        gender: String,
+        age: Number,
+        weight: Number,
+        height: Number,
+        goals: [String],
+        goalReason: String,
+        activity: String,
+        goalWeight: Number,
+        bmi: Object,
+        macros: Object,
+        createdAt: { type: Date, default: Date.now }
+    });
+    
+    const Fitness = mongoose.model('Fitness', FitnessSchema);
+    
+    app.post('/api/fitness', async (req, res) => {
+        try {
+            const fitnessData = new Fitness(req.body);
+            await fitnessData.save();
+            res.json({ success: true, data: fitnessData });
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+     
+    app.listen(3000, () => console.log('Server running on port 3000'));
+    -->
+
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
